@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RIMAC Appointment API - Documentation</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css"
+    />
+    <style>
+      html {
+        box-sizing: border-box;
+        overflow: -moz-scrollbars-vertical;
+        overflow-y: scroll;
+      }
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+      body {
+        margin: 0;
+        background: #fafafa;
+      }
+
+      /* Custom RIMAC styling */
+      .topbar {
+        background-color: #e31e24 !important;
+      }
+
+      .swagger-ui .topbar .download-url-wrapper .select-label {
+        color: white;
+      }
+
+      .swagger-ui .info .title {
+        color: #e31e24;
+      }
+
+      .swagger-ui .btn.authorize {
+        background-color: #e31e24;
+        border-color: #e31e24;
+      }
+
+      .swagger-ui .btn.authorize:hover {
+        background-color: #c51a1f;
+        border-color: #c51a1f;
+      }
+
+      /* Custom header */
+      .custom-header {
+        background: linear-gradient(135deg, #e31e24 0%, #c51a1f 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .custom-header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        font-weight: 300;
+      }
+
+      .custom-header p {
+        margin: 10px 0 0 0;
+        font-size: 1.2em;
+        opacity: 0.9;
+      }
+
+      .api-status {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 5px 15px;
+        border-radius: 20px;
+        margin-top: 10px;
+        font-size: 0.9em;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #4caf50;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="custom-header">
+      <h1>🏥 RIMAC Appointment API</h1>
+      <p>Sistema de Agendamiento de Citas Médicas</p>
+      <div class="api-status">
+        <span class="status-indicator"></span>
+        API Activa - EventBridge Enabled
+      </div>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script
+      src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-bundle.js"
+      charset="UTF-8"
+    ></script>
+    <script
+      src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-standalone-preset.js"
+      charset="UTF-8"
+    ></script>
+
+    <script>
+      window.onload = function () {
+        // Configuración de Swagger UI
+        const ui = SwaggerUIBundle({
+          url: './api/openapi.yaml', // Ruta al archivo YAML en la subcarpeta api
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: 'StandaloneLayout',
+
+          // Configuración personalizada
+          defaultModelRendering: 'example',
+          defaultModelExpandDepth: 1,
+          defaultModelsExpandDepth: 1,
+          showExtensions: true,
+          showCommonExtensions: true,
+
+          // Configuración del servidor por defecto
+          servers: [
+            {
+              url: 'https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev',
+              description: 'Development server (Current)',
+            },
+          ],
+
+          // Try-it-out habilitado por defecto
+          tryItOutEnabled: true,
+
+          // Personalización de headers
+          requestInterceptor: function (request) {
+            // Agregar headers personalizados si es necesario
+            request.headers['Content-Type'] = 'application/json';
+            return request;
+          },
+
+          // Manejo de respuestas
+          responseInterceptor: function (response) {
+            console.log('API Response:', response);
+            return response;
+          },
+        });
+
+        // Agregar información adicional cuando se carga
+        setTimeout(function () {
+          const infoSection = document.querySelector('.info');
+          if (infoSection) {
+            const additionalInfo = document.createElement('div');
+            additionalInfo.innerHTML = `
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #e31e24;">
+                            <h4 style="margin-top: 0; color: #e31e24;">🚀 Estado Actual del Sistema</h4>
+                            <ul style="margin-bottom: 0;">
+                                <li><strong>EventBridge:</strong> ✅ Implementado y funcionando</li>
+                                <li><strong>Multi-país:</strong> ✅ PE y CL operativos</li>
+                                <li><strong>Arquitectura:</strong> ✅ Clean Architecture + SOLID</li>
+                                <li><strong>Base de Datos:</strong> ✅ DynamoDB + RDS MySQL</li>
+                                <li><strong>Monitoreo:</strong> ✅ CloudWatch Logs activos</li>
+                            </ul>
+                        </div>
+                    `;
+            infoSection.appendChild(additionalInfo);
+          }
+        }, 1000);
+      };
+    </script>
+  </body>
+</html>

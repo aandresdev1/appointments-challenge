@@ -1,0 +1,59 @@
+{
+  "name": "rimac-appointments-monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo for Rimac medical appointment scheduling system",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:watch": "npm run build:watch --workspaces",
+    "clean": "npm run clean --workspaces && rimraf coverage",
+    "test": "npm run test --workspaces",
+    "test:watch": "npm run test:watch --workspaces",
+    "deploy": "npm run deploy -w @rimac/appointment-api",
+    "deploy:dev": "npm run deploy:dev -w @rimac/appointment-api",
+    "deploy:prod": "npm run deploy:prod -w @rimac/appointment-api",
+    "deploy:remove": "npm run remove -w @rimac/appointment-api",
+    "docs:serve": "cd docs && npx serve . -p 3000",
+    "docs:open": "npm run docs:serve & start http://localhost:3000",
+    "docs:dev": "cd docs && npx serve . -p 8080",
+    "dev:setup": "npm install && npm run build",
+    "dev:logs": "npm run logs -w @rimac/appointment-api",
+    "postinstall": "npm run build"
+  },
+  "keywords": [
+    "rimac",
+    "medical",
+    "appointments",
+    "aws",
+    "serverless",
+    "monorepo",
+    "microservices"
+  ],
+  "author": "Rimac Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "husky": "^8.0.3",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
+    "serve": "^14.2.5",
+    "serverless-openapi-documentation": "^0.4.0",
+    "swagger-jsdoc": "^6.2.8",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rimac/appointments-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rimac/appointments-backend/issues"
+  },
+  "homepage": "https://github.com/rimac/appointments-backend#readme"
+}

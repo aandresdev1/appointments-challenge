@@ -1,0 +1,629 @@
+openapi: 3.0.3
+info:
+  title: RIMAC Appointment Management API
+  description: |
+    Sistema de agendamiento de citas médicas para asegurados de RIMAC.
+
+    Esta API permite crear y gestionar citas médicas para Perú (PE) y Chile (CL) 
+    con procesamiento asíncrono específico por país usando AWS EventBridge.
+
+    ## Flujo de Procesamiento
+
+    1. **POST /appointments** - Crea cita (estado: pending)
+    2. **SNS → SQS** - Distribuye por país (PE/CL)
+    3. **Lambda PE/CL** - Procesa y guarda en RDS
+    4. **EventBridge** - Envía evento de completación
+    5. **Lambda Completion** - Actualiza estado a "completed"
+
+    ## Arquitectura
+    - **DynamoDB**: Almacenamiento rápido y consultas
+    - **RDS MySQL**: Datos enriquecidos por país
+    - **EventBridge**: Conformidad de agendamiento
+    - **Clean Architecture**: SOLID principles
+
+  version: 1.0.0
+  contact:
+    name: RIMAC Engineering Team
+    email: engineering@rimac.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev
+    description: Development server
+  - url: https://api.rimac.com/appointments/v1
+    description: Production server (example)
+
+tags:
+  - name: appointments
+    description: Gestión de citas médicas
+  - name: health
+    description: Health checks y monitoreo
+  - name: setup
+    description: Configuración y inicialización
+
+paths:
+  /appointments:
+    get:
+      tags:
+        - appointments
+      summary: Obtener todas las citas médicas
+      description: |
+        Recupera todas las citas médicas del sistema con opciones de filtrado.
+
+        **Parámetros de filtrado opcionales:**
+        - País (PE/CL)
+        - Estado (pending/completed/failed)
+        - Límite de resultados
+        - Paginación
+
+        Las citas se ordenan por fecha de creación (más recientes primero).
+
+      operationId: getAllAppointments
+      parameters:
+        - name: countryISO
+          in: query
+          required: false
+          description: Filtrar por país
+          schema:
+            type: string
+            enum: ['PE', 'CL']
+            example: 'PE'
+        - name: status
+          in: query
+          required: false
+          description: Filtrar por estado de la cita
+          schema:
+            type: string
+            enum: ['pending', 'completed', 'failed']
+            example: 'completed'
+        - name: limit
+          in: query
+          required: false
+          description: Número máximo de resultados (1-100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 50
+        - name: offset
+          in: query
+          required: false
+          description: Número de registros a omitir para paginación
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+      responses:
+        '200':
+          description: Citas recuperadas exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAllAppointmentsResponse'
+              examples:
+                all_appointments:
+                  summary: Todas las citas
+                  value:
+                    success: true
+                    data:
+                      appointments:
+                        - id: '550e8400-e29b-41d4-a716-446655440000'
+                          insuredId: '12345'
+                          scheduleId: 100
+                          countryISO: 'PE'
+                          status: 'completed'
+                          createdAt: '2025-09-12T21:47:58.226Z'
+                          updatedAt: '2025-09-12T21:48:01.583Z'
+                          ttl: 1760305678
+                        - id: '660f9511-f3ac-52e5-b827-557766551111'
+                          insuredId: '67890'
+                          scheduleId: 200
+                          countryISO: 'CL'
+                          status: 'pending'
+                          createdAt: '2025-09-12T20:30:00.000Z'
+                          updatedAt: '2025-09-12T20:30:00.000Z'
+                          ttl: 1760302200
+                      total: 2
+                      limit: 20
+                      offset: 0
+                      hasMore: false
+                    message: 'All appointments retrieved successfully'
+                filtered_by_country:
+                  summary: Citas filtradas por país (PE)
+                  value:
+                    success: true
+                    data:
+                      appointments:
+                        - id: '550e8400-e29b-41d4-a716-446655440000'
+                          insuredId: '12345'
+                          scheduleId: 100
+                          countryISO: 'PE'
+                          status: 'completed'
+                          createdAt: '2025-09-12T21:47:58.226Z'
+                          updatedAt: '2025-09-12T21:48:01.583Z'
+                          ttl: 1760305678
+                      total: 1
+                      limit: 20
+                      offset: 0
+                      hasMore: false
+                    message: 'Appointments for PE retrieved successfully'
+        '400':
+          description: Parámetros de consulta inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_country:
+                  value:
+                    success: false
+                    error: "countryISO must be either 'PE' or 'CL'"
+                invalid_limit:
+                  value:
+                    success: false
+                    error: 'limit must be between 1 and 100'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - appointments
+      summary: Crear nueva cita médica
+      description: |
+        Crea una nueva cita médica para un asegurado.
+
+        El procesamiento es asíncrono:
+        - Respuesta inmediata con estado "pending"
+        - Procesamiento específico por país (PE/CL)
+        - Estado final "completed" via EventBridge
+
+      operationId: createAppointment
+      requestBody:
+        description: Datos de la cita médica
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppointmentRequest'
+            examples:
+              peru_example:
+                summary: Cita para Perú
+                value:
+                  insuredId: '12345'
+                  scheduleId: 100
+                  medicalProcedure: 'Consulta Cardiología'
+                  scheduledDate: '2025-09-15T10:00:00Z'
+                  countryISO: 'PE'
+              chile_example:
+                summary: Cita para Chile
+                value:
+                  insuredId: '67890'
+                  scheduleId: 200
+                  medicalProcedure: 'Consulta Dermatología'
+                  scheduledDate: '2025-09-16T14:00:00Z'
+                  countryISO: 'CL'
+      responses:
+        '200':
+          description: Cita creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateAppointmentResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      id: '550e8400-e29b-41d4-a716-446655440000'
+                      message: 'Appointment creation is being processed'
+                      status: 'pending'
+                    message: 'Appointment created successfully'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  value:
+                    success: false
+                    error: 'Validation failed: insuredId must be exactly 5 digits, scheduleId is required'
+                invalid_country:
+                  value:
+                    success: false
+                    error: "countryISO must be either 'PE' or 'CL'"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /appointments/{insuredId}:
+    get:
+      tags:
+        - appointments
+      summary: Obtener citas por asegurado
+      description: |
+        Recupera todas las citas médicas de un asegurado específico.
+
+        Las citas se ordenan por fecha de creación (más recientes primero).
+
+      operationId: getAppointments
+      parameters:
+        - name: insuredId
+          in: path
+          required: true
+          description: Código del asegurado (5 dígitos)
+          schema:
+            type: string
+            pattern: '^[0-9]{5}$'
+            example: '12345'
+      responses:
+        '200':
+          description: Citas recuperadas exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAppointmentsResponse'
+              examples:
+                with_appointments:
+                  value:
+                    success: true
+                    data:
+                      appointments:
+                        - id: '550e8400-e29b-41d4-a716-446655440000'
+                          insuredId: '12345'
+                          scheduleId: 100
+                          countryISO: 'PE'
+                          status: 'completed'
+                          createdAt: '2025-09-12T21:47:58.226Z'
+                          updatedAt: '2025-09-12T21:48:01.583Z'
+                          ttl: 1760305678
+                        - id: '660f9511-f3ac-52e5-b827-557766551111'
+                          insuredId: '12345'
+                          scheduleId: 150
+                          countryISO: 'PE'
+                          status: 'pending'
+                          createdAt: '2025-09-12T20:30:00.000Z'
+                          updatedAt: '2025-09-12T20:30:00.000Z'
+                          ttl: 1760302200
+                      total: 2
+                    message: 'Appointments retrieved successfully'
+                no_appointments:
+                  value:
+                    success: true
+                    data:
+                      appointments: []
+                      total: 0
+                    message: 'No appointments found for this insured'
+        '400':
+          description: ID de asegurado inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check del servicio
+      description: |
+        Verifica el estado de salud del servicio.
+
+        Útil para monitoreo y load balancers.
+
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                success: true
+                data:
+                  status: 'healthy'
+                  timestamp: '2025-09-12T21:35:55.978Z'
+                  service: 'rimac-appointment-api'
+                  version: '1.0.0'
+                  environment: 'dev'
+                  region: 'us-east-1'
+                message: 'Service is healthy'
+
+  /setup-database:
+    post:
+      tags:
+        - setup
+      summary: Configurar base de datos (Solo documentación)
+      description: |
+        Inicializa las tablas de la base de datos MySQL para PE y CL.
+
+        ⚠️ **ENDPOINT DESHABILITADO PARA SEGURIDAD**
+
+        Este endpoint está documentado únicamente con fines informativos.
+        No debe ser ejecutado desde la interfaz de Swagger UI.
+
+        **Uso restringido a:**
+        - Setup inicial del proyecto
+        - Administradores del sistema
+        - Entornos de desarrollo controlados
+
+      operationId: setupDatabase
+      deprecated: true
+      servers: []
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: X-Admin-Token
+          in: header
+          required: true
+          description: '🔒 Token de administrador requerido (NO DISPONIBLE EN SWAGGER UI)'
+          schema:
+            type: string
+            example: 'RESTRICTED_ACCESS_ONLY'
+        - name: X-Environment
+          in: header
+          required: true
+          description: '🛡️ Solo permitido en entornos de desarrollo'
+          schema:
+            type: string
+            enum: ['development']
+            example: 'development'
+      responses:
+        '200':
+          description: Base de datos configurada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+              example:
+                success: true
+                message: 'Database setup completed successfully'
+        '500':
+          description: Error configurando la base de datos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateAppointmentRequest:
+      type: object
+      required:
+        - insuredId
+        - scheduleId
+        - countryISO
+      properties:
+        insuredId:
+          type: string
+          pattern: '^[0-9]{5}$'
+          description: Código del asegurado (exactamente 5 dígitos)
+          example: '12345'
+        scheduleId:
+          type: integer
+          minimum: 1
+          description: Identificador del espacio de agendamiento
+          example: 100
+        medicalProcedure:
+          type: string
+          description: Tipo de procedimiento médico (opcional)
+          example: 'Consulta Cardiología'
+        scheduledDate:
+          type: string
+          format: date-time
+          description: Fecha y hora programada (opcional)
+          example: '2025-09-15T10:00:00Z'
+        countryISO:
+          type: string
+          enum: ['PE', 'CL']
+          description: Código ISO del país
+          example: 'PE'
+
+    CreateAppointmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: ID único de la cita
+              example: '550e8400-e29b-41d4-a716-446655440000'
+            message:
+              type: string
+              example: 'Appointment creation is being processed'
+            status:
+              type: string
+              enum: ['pending']
+              example: 'pending'
+        message:
+          type: string
+          example: 'Appointment created successfully'
+
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID único de la cita
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        insuredId:
+          type: string
+          pattern: '^[0-9]{5}$'
+          description: Código del asegurado
+          example: '12345'
+        scheduleId:
+          type: integer
+          description: ID del espacio de agendamiento
+          example: 100
+        countryISO:
+          type: string
+          enum: ['PE', 'CL']
+          description: Código ISO del país
+          example: 'PE'
+        status:
+          type: string
+          enum: ['pending', 'completed', 'failed']
+          description: Estado actual de la cita
+          example: 'completed'
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha de creación
+          example: '2025-09-12T21:47:58.226Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+          example: '2025-09-12T21:48:01.583Z'
+        ttl:
+          type: integer
+          description: Time-to-live (timestamp Unix)
+          example: 1760305678
+
+    GetAppointmentsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            appointments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Appointment'
+            total:
+              type: integer
+              description: Número total de citas
+              example: 2
+        message:
+          type: string
+          example: 'Appointments retrieved successfully'
+
+    GetAllAppointmentsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            appointments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Appointment'
+              description: Lista de todas las citas (con filtros aplicados)
+            total:
+              type: integer
+              description: Número total de citas que coinciden con los filtros
+              example: 150
+            limit:
+              type: integer
+              description: Límite de resultados aplicado
+              example: 20
+            offset:
+              type: integer
+              description: Offset aplicado para paginación
+              example: 0
+            hasMore:
+              type: boolean
+              description: Indica si hay más resultados disponibles
+              example: true
+        message:
+          type: string
+          example: 'All appointments retrieved successfully'
+
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: ['healthy', 'unhealthy']
+              example: 'healthy'
+            timestamp:
+              type: string
+              format: date-time
+              example: '2025-09-12T21:35:55.978Z'
+            service:
+              type: string
+              example: 'rimac-appointment-api'
+            version:
+              type: string
+              example: '1.0.0'
+            environment:
+              type: string
+              example: 'dev'
+            region:
+              type: string
+              example: 'us-east-1'
+        message:
+          type: string
+          example: 'Service is healthy'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Descripción del error
+          example: 'Validation failed: insuredId must be exactly 5 digits'
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API Key para autenticación (futuro)
+    AdminAuth:
+      type: apiKey
+      in: header
+      name: X-Admin-Token
+      description: '🔒 Token de administrador (RESTRINGIDO - No disponible en Swagger UI)'
+
+# Security (comentado para fase actual)
+# security:
+#   - ApiKeyAuth: []
+
+externalDocs:
+  description: Documentación técnica completa
+  url: https://github.com/rimac/appointment-api/docs

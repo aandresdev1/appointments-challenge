@@ -1,0 +1,520 @@
+service: appointments-services
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+  - serverless-openapi-documentation
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+
+  environment:
+    STAGE: ${self:provider.stage}
+    # AWS_REGION: ${self:provider.region} # Removed: AWS_REGION is reserved by Lambda
+    APPOINTMENTS_TABLE_NAME: !Ref AppointmentsTable
+    SNS_TOPIC_ARN: !Ref AppointmentTopic # Enabled for PE flow
+    EVENT_BUS_NAME: !Ref AppointmentEventBus
+    # RDS PE Configuration - Real RDS instance
+    RDS_PE_HOST: appointments.cqxucwoo0o3j.us-east-1.rds.amazonaws.com
+    RDS_PE_PORT: '3306'
+    RDS_PE_USER: admin
+    RDS_PE_PASSWORD: Capri123!agodinez
+    RDS_PE_DATABASE: appointments_pe
+    RDS_PE_SSL: 'true'
+    # RDS CL Configuration - Same instance, different database
+    RDS_CL_HOST: appointments.cqxucwoo0o3j.us-east-1.rds.amazonaws.com
+    RDS_CL_PORT: '3306'
+    RDS_CL_USER: admin
+    RDS_CL_PASSWORD: Capri123!agodinez
+    RDS_CL_DATABASE: appointments_cl
+    RDS_CL_SSL: 'true'
+
+  iam:
+    role:
+      statements:
+        # DynamoDB permissions
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt AppointmentsTable.Arn
+            - !Sub '${AppointmentsTable.Arn}/index/*'
+
+        # SNS permissions for PE flow
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource: !Ref AppointmentTopic
+
+        # SQS permissions for PE and CL queue processing
+        - Effect: Allow
+          Action:
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !GetAtt AppointmentPEQueue.Arn
+            - !GetAtt AppointmentPEDLQ.Arn
+            - !GetAtt AppointmentCLQueue.Arn
+            - !GetAtt AppointmentCLDLQ.Arn
+            - !GetAtt CompletionQueue.Arn
+            - !GetAtt CompletionDLQ.Arn
+
+        # EventBridge permissions
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource: !GetAtt AppointmentEventBus.Arn
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    target: node18
+    sourcemap: true
+    exclude:
+      - aws-sdk
+    external:
+      - '@aws-sdk/*'
+
+  documentation:
+    api:
+      info:
+        version: '1.0.0'
+        title: RIMAC Appointment Management API
+        description: |
+          Sistema de agendamiento de citas médicas para asegurados de RIMAC.
+
+          Incluye procesamiento asíncrono específico por país (PE/CL) 
+          usando AWS EventBridge para conformidad de agendamiento.
+        contact:
+          name: RIMAC Engineering Team
+          email: engineering@rimac.com
+        license:
+          name: MIT
+    models:
+      - name: CreateAppointmentRequest
+        description: Request para crear nueva cita médica
+        contentType: application/json
+        schema:
+          type: object
+          required:
+            - insuredId
+            - scheduleId
+            - countryISO
+          properties:
+            insuredId:
+              type: string
+              pattern: '^[0-9]{5}$'
+              description: Código del asegurado (5 dígitos)
+              example: '12345'
+            scheduleId:
+              type: integer
+              minimum: 1
+              description: ID del espacio de agendamiento
+              example: 100
+            medicalProcedure:
+              type: string
+              description: Tipo de procedimiento médico
+              example: 'Consulta Cardiología'
+            scheduledDate:
+              type: string
+              format: date-time
+              description: Fecha y hora programada
+              example: '2025-09-15T10:00:00Z'
+            countryISO:
+              type: string
+              enum: ['PE', 'CL']
+              description: Código ISO del país
+              example: 'PE'
+
+      - name: CreateAppointmentResponse
+        description: Response de creación de cita
+        contentType: application/json
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  example: '550e8400-e29b-41d4-a716-446655440000'
+                message:
+                  type: string
+                  example: 'Appointment creation is being processed'
+                status:
+                  type: string
+                  enum: ['pending']
+                  example: 'pending'
+            message:
+              type: string
+              example: 'Appointment created successfully'
+
+functions:
+  # GET /appointments - Get all appointments with optional filtering
+  getAllAppointments:
+    handler: dist/handlers/get-all-appointments.handler
+    events:
+      - http:
+          path: appointments
+          method: get
+          cors: true
+
+  # POST /appointments - Create new appointment
+  createAppointment:
+    handler: dist/handlers/create-appointment.handler
+    events:
+      - http:
+          path: appointments
+          method: post
+          cors: true
+
+  # GET /appointments/{insuredId} - Get appointments by insured ID
+  getAppointments:
+    handler: dist/handlers/get-appointments.handler
+    events:
+      - http:
+          path: appointments/{insuredId}
+          method: get
+          cors: true
+
+  # Health check endpoint
+  healthCheck:
+    handler: dist/handlers/health-check.handler
+    events:
+      - http:
+          path: health
+          method: get
+          cors: true
+
+  # Setup database table (temporary function)
+  setupDatabase:
+    handler: dist/handlers/setup-database.handler
+    timeout: 30
+    environment:
+      RDS_HOST: ${self:provider.environment.RDS_PE_HOST}
+      RDS_PORT: ${self:provider.environment.RDS_PE_PORT}
+      RDS_USER: ${self:provider.environment.RDS_PE_USER}
+      RDS_PASSWORD: ${self:provider.environment.RDS_PE_PASSWORD}
+      RDS_SSL: ${self:provider.environment.RDS_PE_SSL}
+      RDS_CL_HOST: ${self:provider.environment.RDS_CL_HOST}
+      RDS_CL_PORT: ${self:provider.environment.RDS_CL_PORT}
+      RDS_CL_USER: ${self:provider.environment.RDS_CL_USER}
+      RDS_CL_PASSWORD: ${self:provider.environment.RDS_CL_PASSWORD}
+      RDS_CL_SSL: ${self:provider.environment.RDS_CL_SSL}
+    events:
+      - http:
+          path: setup-database
+          method: post
+          cors: true
+
+  # Process PE appointments from SQS
+  processAppointmentPE:
+    handler: dist/handlers/process-appointment-pe.handler
+    timeout: 30
+    environment:
+      APPOINTMENTS_TABLE_NAME: !Ref AppointmentsTable
+      EVENT_BUS_NAME: !Ref AppointmentEventBus
+      RDS_HOST: ${self:provider.environment.RDS_PE_HOST}
+      RDS_USER: ${self:provider.environment.RDS_PE_USER}
+      RDS_PASSWORD: ${self:provider.environment.RDS_PE_PASSWORD}
+      RDS_DATABASE: ${self:provider.environment.RDS_PE_DATABASE}
+    # vpc:
+    #   securityGroupIds:
+    #     - sg-0123456789abcdef0  # Replace with your VPC security group
+    #   subnetIds:
+    #     - subnet-0123456789abcdef0  # Replace with your VPC subnet 1
+    #     - subnet-0123456789abcdef1  # Replace with your VPC subnet 2
+    events:
+      - sqs:
+          arn: !GetAtt AppointmentPEQueue.Arn
+          batchSize: 5
+
+  # Process CL appointments from SQS
+  processAppointmentCL:
+    handler: dist/handlers/process-appointment-cl.handler
+    timeout: 30
+    environment:
+      APPOINTMENTS_TABLE_NAME: !Ref AppointmentsTable
+      EVENT_BUS_NAME: !Ref AppointmentEventBus
+      RDS_CL_HOST: ${self:provider.environment.RDS_CL_HOST}
+      RDS_CL_USER: ${self:provider.environment.RDS_CL_USER}
+      RDS_CL_PASSWORD: ${self:provider.environment.RDS_CL_PASSWORD}
+      RDS_CL_DATABASE: ${self:provider.environment.RDS_CL_DATABASE}
+    events:
+      - sqs:
+          arn: !GetAtt AppointmentCLQueue.Arn
+          batchSize: 5
+
+  # Process completion events from SQS
+  processCompletion:
+    handler: dist/handlers/process-completion.handler
+    timeout: 30
+    environment:
+      APPOINTMENTS_TABLE_NAME: !Ref AppointmentsTable
+    events:
+      - sqs:
+          arn: !GetAtt CompletionQueue.Arn
+          batchSize: 10
+
+resources:
+  Resources:
+    # DynamoDB Table for appointments
+    AppointmentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: appointments-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1-InsuredId-CreatedAt-Index
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    # SNS Topic for distributing appointments to country-specific queues
+    AppointmentTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: appointments-topic-${self:provider.stage}
+        DisplayName: Appointments Distribution Topic
+
+    # SQS Queue for PE appointments
+    AppointmentPEQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: appointments-pe-queue-${self:provider.stage}
+        VisibilityTimeoutSeconds: 60 # Must be greater than Lambda timeout (30s)
+        MessageRetentionPeriod: 1209600 # 14 days
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt AppointmentPEDLQ.Arn
+          maxReceiveCount: 3
+
+    # Dead Letter Queue for PE appointments
+    AppointmentPEDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: appointments-pe-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    # SNS Subscription to route PE messages to PE queue
+    SNSSubscriptionPE:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref AppointmentTopic
+        Protocol: sqs
+        Endpoint: !GetAtt AppointmentPEQueue.Arn
+        FilterPolicy:
+          countryISO:
+            - 'PE'
+
+    # SQS Queue Policy to allow SNS to send messages to PE queue
+    AppointmentPEQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref AppointmentPEQueue
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: sns.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt AppointmentPEQueue.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref AppointmentTopic
+
+    # SQS Queue for CL appointments
+    AppointmentCLQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: appointments-cl-queue-${self:provider.stage}
+        VisibilityTimeoutSeconds: 60 # Must be greater than Lambda timeout (30s)
+        MessageRetentionPeriod: 1209600 # 14 days
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt AppointmentCLDLQ.Arn
+          maxReceiveCount: 3
+
+    # Dead Letter Queue for CL appointments
+    AppointmentCLDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: appointments-cl-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    # SNS Subscription to route CL messages to CL queue
+    SNSSubscriptionCL:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref AppointmentTopic
+        Protocol: sqs
+        Endpoint: !GetAtt AppointmentCLQueue.Arn
+        FilterPolicy:
+          countryISO:
+            - 'CL'
+
+    # SQS Queue Policy to allow SNS to send messages to CL queue
+    AppointmentCLQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref AppointmentCLQueue
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: sns.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt AppointmentCLQueue.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref AppointmentTopic
+
+    # EventBridge Custom Bus for appointment completion
+    AppointmentEventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: appointment-completion-bus-${self:provider.stage}
+
+    # SQS Queue for completion events from EventBridge
+    CompletionQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: appointment-completion-queue-${self:provider.stage}
+        VisibilityTimeoutSeconds: 60
+        MessageRetentionPeriod: 1209600 # 14 days
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt CompletionDLQ.Arn
+          maxReceiveCount: 3
+
+    # Dead Letter Queue for completion events
+    CompletionDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: appointment-completion-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    # EventBridge Rule to route completion events to SQS
+    CompletionEventRule:
+      Type: AWS::Events::Rule
+      Properties:
+        EventBusName: !Ref AppointmentEventBus
+        Name: appointment-completion-rule-${self:provider.stage}
+        Description: Route appointment completion events to SQS
+        EventPattern:
+          source:
+            - 'rimac.appointments'
+          detail-type:
+            - 'Appointment Completion'
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt CompletionQueue.Arn
+            Id: CompletionQueueTarget
+
+    # SQS Queue Policy to allow EventBridge to send messages
+    CompletionQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref CompletionQueue
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt CompletionQueue.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !GetAtt CompletionEventRule.Arn
+
+  Outputs:
+    ApiGatewayRestApiId:
+      Value: !Ref ApiGatewayRestApi
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ApiGatewayRestApiId
+
+    ApiGatewayRestApiRootResourceId:
+      Value: !GetAtt ApiGatewayRestApi.RootResourceId
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ApiGatewayRestApiRootResourceId
+
+    AppointmentsTableName:
+      Value: !Ref AppointmentsTable
+      Export:
+        Name: ${self:service}-${self:provider.stage}-AppointmentsTableName
+
+    AppointmentTopicArn:
+      Value: !Ref AppointmentTopic
+      Export:
+        Name: ${self:service}-${self:provider.stage}-AppointmentTopicArn
+
+    AppointmentPEQueueUrl:
+      Value: !Ref AppointmentPEQueue
+      Export:
+        Name: ${self:service}-${self:provider.stage}-AppointmentPEQueueUrl
+
+    AppointmentCLQueueUrl:
+      Value: !Ref AppointmentCLQueue
+      Export:
+        Name: ${self:service}-${self:provider.stage}-AppointmentCLQueueUrl
+
+    # MESSAGING OUTPUTS - COMMENTED OUT FOR SIMPLIFIED FLOW
+    # AppointmentTopicArn:
+    #   Value: !Ref AppointmentTopic
+    #   Export:
+    #     Name: ${self:service}-${self:provider.stage}-AppointmentTopicArn
+    #
+    # AppointmentPEQueueUrl:
+    #   Value: !Ref AppointmentPEQueue
+    #   Export:
+    #     Name: ${self:service}-${self:provider.stage}-AppointmentPEQueueUrl
+    #
+    # AppointmentCLQueueUrl:
+    #   Value: !Ref AppointmentCLQueue
+    #   Export:
+    #     Name: ${self:service}-${self:provider.stage}-AppointmentCLQueueUrl
+    #
+    # EventBusName:
+    #   Value: !Ref AppointmentEventBus
+    #   Export:
+    #     Name: ${self:service}-${self:provider.stage}-EventBusName
