@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Appointments Technical Challenge
   description: |
-    **Sistema de agendamiento de citas médicas para asegurados de RIMAC - Desafío Técnico**
+    **Sistema de agendamiento de citas médicas para asegurados de Appointments Technical Challenge - Desafío Técnico**
 
     Esta API demuestra una arquitectura serverless escalable para gestionar citas médicas 
     en múltiples países (Perú y Chile) con procesamiento asíncrono y Clean Architecture.
@@ -24,8 +24,8 @@ info:
 
   version: 1.0.0
   contact:
-    name: RIMAC Engineering Team
-    email: engineering@rimac.com
+    name: Appointments Technical Challenge Engineering Team
+    email: engineering@appointments-challenge.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -33,7 +33,7 @@ info:
 servers:
   - url: https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev
     description: Development server
-  - url: https://api.rimac.com/appointments/v1
+  - url: https://api.appointments-challenge.com/appointments/v1
     description: Production server (example)
 
 tags:
@@ -627,4 +627,4 @@ components:
 
 externalDocs:
   description: Documentación técnica completa
-  url: https://github.com/rimac/appointment-api/docs
+  url: https://github.com/appointments-challenge/appointment-api/docs

@@ -50,7 +50,7 @@ dist/docs/
 ## 🌐 URLs de Acceso
 
 - **Desarrollo local**: http://localhost:3000
-- **S3 Static Website**: http://rimac-appointments-docs.s3-website-us-east-1.amazonaws.com
+- **S3 Static Website**: http://appointments-challenge-docs.s3-website-us-east-1.amazonaws.com
 
 ## 🔧 Personalización
 

@@ -1,6 +1,6 @@
 # Appointments Technical Challenge
 
-> **Plataforma de agendamiento de citas médicas de nivel empresarial para las operaciones de RIMAC en múltiples países (Perú y Chile)**
+> **Plataforma de agendamiento de citas médicas de nivel empresarial para las operaciones de Appointments Technical Challenge en múltiples países (Perú y Chile)**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.2+-blue.svg)](https://typescript.org/)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-orange.svg)](https://aws.amazon.com/)
@@ -9,7 +9,7 @@
 
 ## 🎯 **Descripción del Proyecto**
 
-Este es un **sistema escalable de gestión de citas médicas** diseñado para las operaciones de salud de RIMAC en Perú (PE) y Chile (CL). El sistema maneja la creación de citas, procesamiento específico por país, y flujos de trabajo de completación usando arquitectura serverless de AWS.
+Este es un **sistema escalable de gestión de citas médicas** diseñado para las operaciones de salud de Appointments Technical Challenge en Perú (PE) y Chile (CL). El sistema maneja la creación de citas, procesamiento específico por país, y flujos de trabajo de completación usando arquitectura serverless de AWS.
 
 ### **Problema de Negocio Resuelto**
 
@@ -456,7 +456,7 @@ Este proyecto demuestra **arquitectura serverless lista para producción** con:
 - ✅ **Integración DevOps**: IaC, listo para CI/CD, monitoreo
 - ✅ **Expertise en dominio de negocio**: Salud, operaciones multi-país
 
-**Construido para el desafío técnico de RIMAC** por **[Tu Nombre]** - demostrando expertise en desarrollo moderno de aplicaciones cloud-native.
+**Construido para el desafío técnico de Appointments Technical Challenge** por **[Tu Nombre]** - demostrando expertise en desarrollo moderno de aplicaciones cloud-native.
 
 ---
 
