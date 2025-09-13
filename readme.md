@@ -356,6 +356,8 @@ RDS_PE_HOST=appointments.region.rds.amazonaws.com
 RDS_CL_HOST=appointments.region.rds.amazonaws.com
 ```
 
+> **🔐 Credenciales RDS**: Las credenciales de acceso a la base de datos RDS (usuario, contraseña, puerto) están configuradas en el archivo `packages/appointment-api/serverless.yml` en la sección `environment` de cada función Lambda. Estas credenciales se definen como variables de entorno específicas para cada país (PE y CL).
+
 ---
 
 ## 🧪 **Estrategia de Testing**

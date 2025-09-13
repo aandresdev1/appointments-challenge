@@ -22,6 +22,9 @@ info:
     - **Clean Architecture**: Principios SOLID y separación de capas
     - **Monorepo TypeScript**: Librerías compartidas type-safe
 
+    ## Configuración RDS
+    Las credenciales y configuración de conexión a la base de datos RDS MySQL están definidas en el archivo `packages/appointment-api/serverless.yml` en las variables de entorno específicas para cada país (PE y CL), incluyendo host, puerto, usuario, contraseña y nombre de base de datos.
+
   version: 1.0.0
   contact:
     name: Appointments Technical Challenge Engineering Team
