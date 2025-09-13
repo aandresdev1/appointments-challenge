@@ -64,11 +64,16 @@ npm run deploy:dev
 
 ### **🌐 Probar la API**
 
-```bash
-# Ver documentación interactiva de la API
-npm run docs:serve
-# Abrir: http://localhost:3000
+#### **📖 Documentación Interactiva**
 
+La documentación completa de la API está disponible en:
+
+- **🌍 Documentación en vivo**: [http://appointment-technical-challenge-docs.s3-website-us-east-1.amazonaws.com/](http://appointment-technical-challenge-docs.s3-website-us-east-1.amazonaws.com/)
+- **💻 Documentación local**: `npm run docs:serve` → [http://localhost:3000](http://localhost:3000)
+
+#### **🧪 Pruebas de Endpoints**
+
+```bash
 # Probar endpoint de salud
 curl https://YOUR_API_URL/dev/health
 

@@ -50,7 +50,9 @@ dist/docs/
 ## 🌐 URLs de Acceso
 
 - **Desarrollo local**: http://localhost:3000
-- **S3 Static Website**: http://appointments-challenge-docs.s3-website-us-east-1.amazonaws.com
+- **📖 Documentación en vivo**: [http://appointment-technical-challenge-docs.s3-website-us-east-1.amazonaws.com/](http://appointment-technical-challenge-docs.s3-website-us-east-1.amazonaws.com/)
+
+> 💡 **Tip**: La documentación está desplegada y accesible en vivo. También puedes ejecutarla localmente usando `npm run docs:serve` como se indica en las instrucciones de arriba.
 
 ## 🔧 Personalización
 

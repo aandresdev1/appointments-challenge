@@ -32,6 +32,10 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
+  
+externalDocs:
+  description: Documentación completa disponible en vivo
+  url: http://appointment-technical-challenge-docs.s3-website-us-east-1.amazonaws.com/
 
 servers:
   - url: https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev
