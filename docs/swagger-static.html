@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Appointments Technical Challenge API - Swagger UI</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://unpkg.com/swagger-ui-dist@5.0.0/swagger-ui.css"
+    />
+    <style>
+      html {
+        box-sizing: border-box;
+        overflow: -moz-scrollbars-vertical;
+        overflow-y: scroll;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      body {
+        margin: 0;
+        background: #fafafa;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      }
+
+      .swagger-ui .topbar {
+        background: linear-gradient(135deg, #e31e24 0%, #c51a1f 100%);
+        border-bottom: 2px solid #a01017;
+      }
+
+      .swagger-ui .topbar .download-url-wrapper {
+        display: none;
+      }
+
+      #swagger-ui {
+        max-width: 1460px;
+        margin: 0 auto;
+      }
+
+      .topbar-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 20px;
+      }
+
+      .topbar-wrapper .link {
+        color: white;
+        text-decoration: none;
+        font-size: 1.5em;
+        font-weight: bold;
+      }
+
+      .custom-header {
+        background: linear-gradient(135deg, #e31e24 0%, #c51a1f 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .custom-header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .custom-header p {
+        margin: 10px 0 0 0;
+        font-size: 1.2em;
+        opacity: 0.9;
+      }
+
+      .status-banner {
+        background: rgba(76, 175, 80, 0.1);
+        border-left: 4px solid #4caf50;
+        padding: 15px;
+        margin: 20px;
+        border-radius: 5px;
+      }
+
+      .status-banner h3 {
+        margin-top: 0;
+        color: #2e7d32;
+      }
+
+      .status-banner ul {
+        margin: 10px 0;
+        padding-left: 20px;
+      }
+
+      .status-banner li {
+        color: #388e3c;
+        margin: 5px 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="custom-header">
+      <h1>🏥 Appointments Technical Challenge API</h1>
+      <p>Sistema de Agendamiento de Citas Médicas con Arquitectura Serverless</p>
+    </div>
+
+    <div class="status-banner">
+      <h3>✅ Estado del Sistema</h3>
+      <ul>
+        <li>
+          <strong>API Base URL:</strong> https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev
+        </li>
+        <li><strong>EventBridge:</strong> Implementado y Funcionando</li>
+        <li><strong>Procesamiento PE/CL:</strong> Operativo</li>
+        <li><strong>Clean Architecture:</strong> SOLID Principles</li>
+      </ul>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.0.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.0.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+      window.onload = function () {
+        // OpenAPI specification embedded directly in the HTML
+        const spec = {
+          openapi: '3.0.3',
+          info: {
+            title: 'Appointments Technical Challenge',
+            description:
+              '**Sistema de agendamiento de citas médicas para asegurados de Appointments Technical Challenge - Desafío Técnico**\n\nEsta API demuestra una arquitectura serverless escalable para gestionar citas médicas \nen múltiples países (Perú y Chile) con procesamiento asíncrono y Clean Architecture.\n\n## Flujo de Procesamiento\n\n1. **POST /appointments** - Crea cita (estado: pending)\n2. **SNS → SQS** - Distribuye por país (PE/CL)\n3. **Lambda PE/CL** - Procesa y guarda en RDS\n4. **EventBridge** - Envía evento de completación\n5. **Lambda Completion** - Actualiza estado a "completed"\n\n## Arquitectura Técnica\n- **DynamoDB**: Almacenamiento rápido y consultas en tiempo real\n- **RDS MySQL**: Datos enriquecidos específicos por país\n- **EventBridge**: Eventos de conformidad de agendamiento\n- **Clean Architecture**: Principios SOLID y separación de capas\n- **Monorepo TypeScript**: Librerías compartidas type-safe\n',
+            version: '1.0.0',
+            contact: {
+              name: 'Appointments Technical Challenge Engineering Team',
+              email: 'engineering@appointments-challenge.com',
+            },
+            license: {
+              name: 'MIT',
+              url: 'https://opensource.org/licenses/MIT',
+            },
+          },
+          servers: [
+            {
+              url: 'https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev',
+              description: 'Development server',
+            },
+            {
+              url: 'https://api.appointments-challenge.com/appointments/v1',
+              description: 'Production server (example)',
+            },
+          ],
+          tags: [
+            {
+              name: 'appointments',
+              description: 'Gestión de citas médicas',
+            },
+            {
+              name: 'health',
+              description: 'Health checks y monitoreo',
+            },
+            {
+              name: 'setup',
+              description: 'Configuración y inicialización',
+            },
+          ],
+          paths: {
+            '/appointments': {
+              get: {
+                tags: ['appointments'],
+                summary: 'Obtener todas las citas (con filtros)',
+                description:
+                  '**🔍 Endpoint para obtener todas las citas con capacidades de filtrado y paginación avanzadas**\n\nEste endpoint permite a los administradores y operadores obtener una vista completa de todas las citas en el sistema, con múltiples opciones de filtrado y paginación para manejar grandes volúmenes de datos.\n\n### Casos de Uso\n- **Dashboard administrativo**: Vista general del estado de las citas\n- **Reportes operacionales**: Análisis de citas por país, estado, fechas\n- **Auditoría**: Seguimiento de citas completadas vs pendientes\n- **Optimización de recursos**: Identificar patrones de agendamiento\n\n### Filtros Disponibles\n- **Por País**: PE (Perú) / CL (Chile)\n- **Por Estado**: pending, processing, completed, failed\n- **Por Fechas**: Rango de fechas de creación\n- **Paginación**: Limit/offset para grandes datasets\n\n### Performance\n- **Índices optimizados** en DynamoDB\n- **Cacheing automático** para consultas frecuentes\n- **Límite por defecto**: 20 resultados para evitar timeouts\n\n> ⚠️ **Nota de Seguridad**: Este endpoint requiere privilegios administrativos en producción\n',
+                operationId: 'getAllAppointments',
+                parameters: [
+                  {
+                    name: 'country',
+                    in: 'query',
+                    description: 'Filtrar por país (PE/CL)',
+                    required: false,
+                    schema: {
+                      type: 'string',
+                      enum: ['PE', 'CL'],
+                      example: 'PE',
+                    },
+                  },
+                  {
+                    name: 'status',
+                    in: 'query',
+                    description: 'Filtrar por estado de la cita',
+                    required: false,
+                    schema: {
+                      type: 'string',
+                      enum: ['pending', 'processing', 'completed', 'failed'],
+                      example: 'completed',
+                    },
+                  },
+                  {
+                    name: 'limit',
+                    in: 'query',
+                    description: 'Número máximo de resultados a devolver',
+                    required: false,
+                    schema: {
+                      type: 'integer',
+                      minimum: 1,
+                      maximum: 100,
+                      default: 20,
+                      example: 20,
+                    },
+                  },
+                  {
+                    name: 'offset',
+                    in: 'query',
+                    description: 'Número de resultados a saltar (para paginación)',
+                    required: false,
+                    schema: {
+                      type: 'integer',
+                      minimum: 0,
+                      default: 0,
+                      example: 0,
+                    },
+                  },
+                  {
+                    name: 'fromDate',
+                    in: 'query',
+                    description: 'Fecha de inicio (ISO 8601) para filtrar citas',
+                    required: false,
+                    schema: {
+                      type: 'string',
+                      format: 'date-time',
+                      example: '2025-09-01T00:00:00.000Z',
+                    },
+                  },
+                  {
+                    name: 'toDate',
+                    in: 'query',
+                    description: 'Fecha de fin (ISO 8601) para filtrar citas',
+                    required: false,
+                    schema: {
+                      type: 'string',
+                      format: 'date-time',
+                      example: '2025-09-30T23:59:59.999Z',
+                    },
+                  },
+                ],
+                responses: {
+                  200: {
+                    description: 'Lista de citas obtenida exitosamente',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/GetAllAppointmentsResponse',
+                        },
+                      },
+                    },
+                  },
+                  400: {
+                    description: 'Parámetros de consulta inválidos',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                      },
+                    },
+                  },
+                  500: {
+                    description: 'Error interno del servidor',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              post: {
+                tags: ['appointments'],
+                summary: 'Crear nueva cita médica',
+                description:
+                  "**🚀 Endpoint principal para crear citas médicas en el sistema**\n\nEste endpoint inicia el flujo completo de agendamiento de citas médicas:\n\n### Flujo de Procesamiento Asíncrono\n1. **Validación inicial** - Verifica datos del asegurado y disponibilidad\n2. **Almacenamiento DynamoDB** - Crea registro con estado 'pending'\n3. **Publicación SNS** - Distribuye mensaje por país (PE/CL)\n4. **Procesamiento específico** - Lambda dedicado por país procesa la cita\n5. **Almacenamiento RDS** - Guarda datos enriquecidos en MySQL\n6. **EventBridge** - Emite evento de completación\n7. **Actualización estado** - Cambia estado a 'completed'\n\n### Países Soportados\n- **PE (Perú)**: Integración con sistema MINSA\n- **CL (Chile)**: Integración con FONASA\n\n### Validaciones\n- **insuredId**: Exactamente 5 dígitos\n- **scheduleId**: ID válido de horario disponible\n- **countryISO**: Solo PE y CL soportados\n- **medicalProcedure**: Procedimiento médico válido\n\n> 📋 **Tip**: El estado inicial será 'pending'. El procesamiento asíncrono lo actualizará automáticamente.\n",
+                operationId: 'createAppointment',
+                requestBody: {
+                  description: 'Datos de la nueva cita médica',
+                  required: true,
+                  content: {
+                    'application/json': {
+                      schema: {
+                        $ref: '#/components/schemas/CreateAppointmentRequest',
+                      },
+                      examples: {
+                        peru_cardiology: {
+                          summary: 'Cita Cardiología - Perú',
+                          description: 'Ejemplo de cita para consulta cardiológica en Perú',
+                          value: {
+                            insuredId: '12345',
+                            scheduleId: 100,
+                            countryISO: 'PE',
+                            medicalProcedure: 'Consulta Cardiología',
+                          },
+                        },
+                        chile_dermatology: {
+                          summary: 'Cita Dermatología - Chile',
+                          description: 'Ejemplo de cita para consulta dermatológica en Chile',
+                          value: {
+                            insuredId: '67890',
+                            scheduleId: 200,
+                            countryISO: 'CL',
+                            medicalProcedure: 'Consulta Dermatología',
+                          },
+                        },
+                        peru_surgery: {
+                          summary: 'Cirugía - Perú',
+                          description: 'Ejemplo de cita para cirugía en Perú',
+                          value: {
+                            insuredId: '11111',
+                            scheduleId: 150,
+                            countryISO: 'PE',
+                            medicalProcedure: 'Cirugía Vesícula Biliar',
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                responses: {
+                  201: {
+                    description: 'Cita creada exitosamente',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/CreateAppointmentResponse',
+                        },
+                      },
+                    },
+                  },
+                  400: {
+                    description: 'Datos de entrada inválidos',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                        examples: {
+                          invalid_insured_id: {
+                            summary: 'ID de asegurado inválido',
+                            value: {
+                              success: false,
+                              error: 'Validation failed: insuredId must be exactly 5 digits',
+                            },
+                          },
+                          invalid_country: {
+                            summary: 'País no soportado',
+                            value: {
+                              success: false,
+                              error: 'Validation failed: countryISO must be either PE or CL',
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  500: {
+                    description: 'Error interno del servidor',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '/appointments/{insuredId}': {
+              get: {
+                tags: ['appointments'],
+                summary: 'Obtener citas de un asegurado específico',
+                description:
+                  '**👤 Obtiene todas las citas médicas asociadas a un asegurado específico**\n\nEste endpoint permite consultar el historial completo de citas de un asegurado, incluyendo citas pasadas, presentes y futuras.\n\n### Información Incluida\n- **Datos básicos**: ID, estado, fecha de creación\n- **Detalles médicos**: Procedimiento, país de atención\n- **Metadatos**: Timestamps de procesamiento, TTL\n- **Estado de procesamiento**: pending → processing → completed\n\n### Casos de Uso\n- **Portal del paciente**: Mostrar historial de citas\n- **Call center**: Consulta rápida de información\n- **Seguimiento médico**: Verificar estado de agendamientos\n- **Auditoría**: Rastrear citas por asegurado\n\n### Performance\n- **Consulta optimizada** con índice en DynamoDB\n- **Respuesta típica**: < 100ms\n- **Ordenamiento**: Por fecha de creación (más reciente primero)\n\n> 🔍 **Tip**: Si el asegurado no tiene citas, se retornará una lista vacía con código 200\n',
+                operationId: 'getAppointmentsByInsured',
+                parameters: [
+                  {
+                    name: 'insuredId',
+                    in: 'path',
+                    description: 'ID del asegurado (exactamente 5 dígitos)',
+                    required: true,
+                    schema: {
+                      type: 'string',
+                      pattern: '^\\d{5}$',
+                      example: '12345',
+                    },
+                  },
+                ],
+                responses: {
+                  200: {
+                    description: 'Citas del asegurado obtenidas exitosamente',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/GetAppointmentsResponse',
+                        },
+                      },
+                    },
+                  },
+                  400: {
+                    description: 'ID de asegurado inválido',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                      },
+                    },
+                  },
+                  500: {
+                    description: 'Error interno del servidor',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '/health': {
+              get: {
+                tags: ['health'],
+                summary: 'Health check del servicio',
+                description:
+                  '**🏥 Endpoint de monitoreo para verificar el estado del servicio**\n\nEste endpoint proporciona información detallada sobre la salud y disponibilidad del sistema.\n\n### Información Incluida\n- **Estado general**: healthy/unhealthy\n- **Timestamp**: Momento exacto de la verificación\n- **Metadatos del servicio**: Versión, ambiente, región\n- **Identificador**: Nombre del servicio\n\n### Casos de Uso\n- **Load balancers**: Verificación automática de salud\n- **Monitoreo**: CloudWatch, Datadog, etc.\n- **CI/CD**: Validación post-deployment\n- **Debugging**: Verificación rápida de conectividad\n\n### SLA\n- **Disponibilidad esperada**: 99.9%\n- **Tiempo de respuesta**: < 50ms\n- **Frecuencia recomendada**: Cada 30 segundos\n\n> ✅ **Status 200**: Servicio operativo y saludable\n> ❌ **Status 5xx**: Servicio con problemas\n',
+                operationId: 'healthCheck',
+                responses: {
+                  200: {
+                    description: 'Servicio saludable y operativo',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/HealthResponse',
+                        },
+                      },
+                    },
+                  },
+                  503: {
+                    description: 'Servicio no disponible',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '/setup/database': {
+              post: {
+                tags: ['setup'],
+                summary: '🔧 Configurar base de datos RDS',
+                description:
+                  "**⚙️ Endpoint administrativo para inicializar las tablas de base de datos RDS**\n\n> ⚠️ **ADVERTENCIA**: Este es un endpoint administrativo que solo debe usarse durante la configuración inicial del sistema.\n\n### Funcionalidad\n- **Crea tablas MySQL** en RDS para PE y CL\n- **Configuración de índices** optimizados\n- **Validación de conectividad** a la base de datos\n- **Esquema de datos** específico por país\n\n### Requisitos\n- **Privilegios de administrador**\n- **Conexión a RDS** configurada\n- **Variables de entorno** correctas\n\n### Tablas Creadas\n```sql\n-- Tabla para Perú (PE)\nCREATE TABLE appointments_pe (\n  id VARCHAR(36) PRIMARY KEY,\n  insured_id VARCHAR(10) NOT NULL,\n  schedule_id INT NOT NULL,\n  medical_procedure TEXT,\n  status ENUM('pending','processing','completed','failed'),\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  INDEX idx_insured (insured_id),\n  INDEX idx_status (status)\n);\n\n-- Tabla similar para Chile (CL)\n```\n\n### Uso Recomendado\n1. **Solo una vez** durante el setup inicial\n2. **Ambiente de desarrollo** para testing\n3. **Disaster recovery** para recrear esquema\n\n> 🚨 **No ejecutar en producción** sin coordinación con el equipo de DevOps\n",
+                operationId: 'setupDatabase',
+                responses: {
+                  200: {
+                    description: 'Base de datos configurada exitosamente',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          type: 'object',
+                          properties: {
+                            success: {
+                              type: 'boolean',
+                              example: true,
+                            },
+                            message: {
+                              type: 'string',
+                              example: 'Database setup completed successfully',
+                            },
+                            data: {
+                              type: 'object',
+                              properties: {
+                                tablesCreated: {
+                                  type: 'array',
+                                  items: {
+                                    type: 'string',
+                                  },
+                                  example: ['appointments_pe', 'appointments_cl'],
+                                },
+                                timestamp: {
+                                  type: 'string',
+                                  format: 'date-time',
+                                  example: '2025-09-12T21:35:55.978Z',
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  500: {
+                    description: 'Error en la configuración de la base de datos',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/ErrorResponse',
+                        },
+                      },
+                    },
+                  },
+                },
+                security: [
+                  {
+                    AdminAuth: [],
+                  },
+                ],
+              },
+            },
+          },
+          components: {
+            schemas: {
+              CreateAppointmentRequest: {
+                type: 'object',
+                required: ['insuredId', 'scheduleId', 'countryISO', 'medicalProcedure'],
+                properties: {
+                  insuredId: {
+                    type: 'string',
+                    pattern: '^\\d{5}$',
+                    description: 'ID del asegurado (exactamente 5 dígitos)',
+                    example: '12345',
+                  },
+                  scheduleId: {
+                    type: 'integer',
+                    minimum: 1,
+                    description: 'ID del horario de la cita',
+                    example: 100,
+                  },
+                  countryISO: {
+                    type: 'string',
+                    enum: ['PE', 'CL'],
+                    description: 'Código ISO del país (PE para Perú, CL para Chile)',
+                    example: 'PE',
+                  },
+                  medicalProcedure: {
+                    type: 'string',
+                    minLength: 3,
+                    maxLength: 200,
+                    description: 'Descripción del procedimiento médico',
+                    example: 'Consulta Cardiología',
+                  },
+                },
+              },
+              CreateAppointmentResponse: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true,
+                  },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      appointmentId: {
+                        type: 'string',
+                        format: 'uuid',
+                        description: 'ID único de la cita creada',
+                        example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+                      },
+                      status: {
+                        type: 'string',
+                        enum: ['pending'],
+                        description: 'Estado inicial de la cita',
+                        example: 'pending',
+                      },
+                      message: {
+                        type: 'string',
+                        description: 'Información sobre el procesamiento',
+                        example: 'Appointment created and sent for processing',
+                      },
+                    },
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Appointment created successfully',
+                  },
+                },
+              },
+              Appointment: {
+                type: 'object',
+                properties: {
+                  appointmentId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'ID único de la cita',
+                    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+                  },
+                  insuredId: {
+                    type: 'string',
+                    pattern: '^\\d{5}$',
+                    description: 'ID del asegurado',
+                    example: '12345',
+                  },
+                  scheduleId: {
+                    type: 'integer',
+                    description: 'ID del horario',
+                    example: 100,
+                  },
+                  countryISO: {
+                    type: 'string',
+                    enum: ['PE', 'CL'],
+                    description: 'País de la cita',
+                    example: 'PE',
+                  },
+                  medicalProcedure: {
+                    type: 'string',
+                    description: 'Procedimiento médico',
+                    example: 'Consulta Cardiología',
+                  },
+                  status: {
+                    type: 'string',
+                    enum: ['pending', 'processing', 'completed', 'failed'],
+                    description: 'Estado actual de la cita',
+                    example: 'completed',
+                  },
+                  createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    description: 'Fecha de creación',
+                    example: '2025-09-12T21:47:58.226Z',
+                  },
+                  updatedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    description: 'Fecha de última actualización',
+                    example: '2025-09-12T21:48:01.583Z',
+                  },
+                  ttl: {
+                    type: 'integer',
+                    description: 'Time-to-live (timestamp Unix)',
+                    example: 1760305678,
+                  },
+                },
+              },
+              GetAppointmentsResponse: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true,
+                  },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      appointments: {
+                        type: 'array',
+                        items: {
+                          $ref: '#/components/schemas/Appointment',
+                        },
+                      },
+                      total: {
+                        type: 'integer',
+                        description: 'Número total de citas',
+                        example: 2,
+                      },
+                    },
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Appointments retrieved successfully',
+                  },
+                },
+              },
+              GetAllAppointmentsResponse: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true,
+                  },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      appointments: {
+                        type: 'array',
+                        items: {
+                          $ref: '#/components/schemas/Appointment',
+                        },
+                        description: 'Lista de todas las citas (con filtros aplicados)',
+                      },
+                      total: {
+                        type: 'integer',
+                        description: 'Número total de citas que coinciden con los filtros',
+                        example: 150,
+                      },
+                      limit: {
+                        type: 'integer',
+                        description: 'Límite de resultados aplicado',
+                        example: 20,
+                      },
+                      offset: {
+                        type: 'integer',
+                        description: 'Offset aplicado para paginación',
+                        example: 0,
+                      },
+                      hasMore: {
+                        type: 'boolean',
+                        description: 'Indica si hay más resultados disponibles',
+                        example: true,
+                      },
+                    },
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'All appointments retrieved successfully',
+                  },
+                },
+              },
+              HealthResponse: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true,
+                  },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      status: {
+                        type: 'string',
+                        enum: ['healthy', 'unhealthy'],
+                        example: 'healthy',
+                      },
+                      timestamp: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2025-09-12T21:35:55.978Z',
+                      },
+                      service: {
+                        type: 'string',
+                        example: 'rimac-appointment-api',
+                      },
+                      version: {
+                        type: 'string',
+                        example: '1.0.0',
+                      },
+                      environment: {
+                        type: 'string',
+                        example: 'dev',
+                      },
+                      region: {
+                        type: 'string',
+                        example: 'us-east-1',
+                      },
+                    },
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Service is healthy',
+                  },
+                },
+              },
+              ErrorResponse: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: false,
+                  },
+                  error: {
+                    type: 'string',
+                    description: 'Descripción del error',
+                    example: 'Validation failed: insuredId must be exactly 5 digits',
+                  },
+                },
+              },
+            },
+            securitySchemes: {
+              ApiKeyAuth: {
+                type: 'apiKey',
+                in: 'header',
+                name: 'X-API-Key',
+                description: 'API Key para autenticación (futuro)',
+              },
+              AdminAuth: {
+                type: 'apiKey',
+                in: 'header',
+                name: 'X-Admin-Token',
+                description:
+                  '🔒 Token de administrador (RESTRINGIDO - No disponible en Swagger UI)',
+              },
+            },
+          },
+          externalDocs: {
+            description: 'Documentación técnica completa',
+            url: 'https://github.com/appointments-challenge/appointment-api/docs',
+          },
+        };
+
+        // Initialize SwaggerUI
+        const ui = SwaggerUIBundle({
+          url: '',
+          spec: spec,
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: 'StandaloneLayout',
+          tryItOutEnabled: true,
+          supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+          onComplete: function () {
+            console.log('Swagger UI loaded successfully!');
+          },
+          onFailure: function (error) {
+            console.error('Swagger UI failed to load:', error);
+          },
+        });
+
+        window.ui = ui;
+
+        // Auto health check
+        setInterval(function () {
+          fetch('https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev/health')
+            .then(response => response.json())
+            .then(data => {
+              console.log('✅ API Health:', data.data.status);
+            })
+            .catch(error => {
+              console.log('❌ API Health Check Failed:', error.message);
+            });
+        }, 60000); // Check every minute
+      };
+    </script>
+  </body>
+</html>

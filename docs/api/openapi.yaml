@@ -1,11 +1,11 @@
 openapi: 3.0.3
 info:
-  title: RIMAC Appointment Management API
+  title: Appointments Technical Challenge
   description: |
-    Sistema de agendamiento de citas médicas para asegurados de RIMAC.
+    **Sistema de agendamiento de citas médicas para asegurados de Appointments Technical Challenge - Desafío Técnico**
 
-    Esta API permite crear y gestionar citas médicas para Perú (PE) y Chile (CL) 
-    con procesamiento asíncrono específico por país usando AWS EventBridge.
+    Esta API demuestra una arquitectura serverless escalable para gestionar citas médicas 
+    en múltiples países (Perú y Chile) con procesamiento asíncrono y Clean Architecture.
 
     ## Flujo de Procesamiento
 
@@ -15,24 +15,32 @@ info:
     4. **EventBridge** - Envía evento de completación
     5. **Lambda Completion** - Actualiza estado a "completed"
 
-    ## Arquitectura
-    - **DynamoDB**: Almacenamiento rápido y consultas
-    - **RDS MySQL**: Datos enriquecidos por país
-    - **EventBridge**: Conformidad de agendamiento
-    - **Clean Architecture**: SOLID principles
+    ## Arquitectura Técnica
+    - **DynamoDB**: Almacenamiento rápido y consultas en tiempo real
+    - **RDS MySQL**: Datos enriquecidos específicos por país
+    - **EventBridge**: Eventos de conformidad de agendamiento
+    - **Clean Architecture**: Principios SOLID y separación de capas
+    - **Monorepo TypeScript**: Librerías compartidas type-safe
+
+    ## Configuración RDS
+    Las credenciales y configuración de conexión a la base de datos RDS MySQL están definidas en el archivo `packages/appointment-api/serverless.yml` en las variables de entorno específicas para cada país (PE y CL), incluyendo host, puerto, usuario, contraseña y nombre de base de datos.
 
   version: 1.0.0
   contact:
-    name: RIMAC Engineering Team
-    email: engineering@rimac.com
+    name: Appointments Technical Challenge Engineering Team
+    email: engineering@appointments-challenge.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
+  
+externalDocs:
+  description: Documentación completa disponible en vivo
+  url: http://appointment-technical-challenge-docs.s3-website-us-east-1.amazonaws.com/
 
 servers:
   - url: https://m0ktt5jp3i.execute-api.us-east-1.amazonaws.com/dev
     description: Development server
-  - url: https://api.rimac.com/appointments/v1
+  - url: https://api.appointments-challenge.com/appointments/v1
     description: Production server (example)
 
 tags:
@@ -626,4 +634,4 @@ components:
 
 externalDocs:
   description: Documentación técnica completa
-  url: https://github.com/rimac/appointment-api/docs
+  url: https://github.com/appointments-challenge/appointment-api/docs
